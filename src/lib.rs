@@ -77,14 +77,6 @@ impl<K: std::hash::Hash + Eq + Clone + Send + 'static, V: Clone + Send + 'static
         }
         None
     }
-
-    // Manual eviction method for immediate cleanup (optional)
-    pub fn evict_expired(&mut self) {
-        if let Ok(mut map_guard) = self.map.lock() {
-            let now = Instant::now();
-            map_guard.retain(|_, (_, expiry)| *expiry > now);
-        }
-    }
 }
 
 impl<K, V> Drop for TLRUCache<K, V> {
