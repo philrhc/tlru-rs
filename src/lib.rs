@@ -1,43 +1,71 @@
-use std::time::{Duration, Instant};
-use indexmap::map::IndexMap;
-use std::sync::{Arc, Mutex};
-use tokio::time::interval;
-use tokio::task::JoinHandle;
+//! A time-aware LRU cache implementation with automatic TTL-based eviction.
+//! 
+//! This crate provides a thread-safe, async-friendly cache that combines
+//! LRU (Least Recently Used) eviction with time-based expiration.
 
+use indexmap::map::IndexMap;
+use std::time::Duration;
+use std::sync::{Arc, Mutex};
+
+#[cfg(not(test))]
+use std::time::Instant;
+#[cfg(test)]
+use mock_instant::global::Instant;
+
+/// A time-aware LRU cache that automatically evicts items based on both
+/// capacity limits and time-to-live (TTL) expiration.
+/// 
+/// Items are automatically removed when they expire, and when the cache
+/// reaches capacity, the least recently used items are evicted first.
 pub struct TLRUCache<K, V> {
     capacity: usize,
     ttl: Duration,
-    map: Arc<Mutex<IndexMap<K, (V, Instant)>>>, // Key -> (Value, Expiry Time)
-    eviction_handle: Option<JoinHandle<()>>,
+    map: Arc<Mutex<IndexMap<K, (V, Instant)>>>,
 }
 
 impl<K: std::hash::Hash + Eq + Clone + Send + 'static, V: Clone + Send + 'static> TLRUCache<K, V> {
+    /// Creates a new TLRU cache with the specified capacity and TTL.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `capacity` - Maximum number of items the cache can hold
+    /// * `ttl` - Time-to-live duration for cache entries
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use tlru_rs::TLRUCache;
+    /// use std::time::Duration;
+    /// 
+    /// let cache: TLRUCache<i32, &'static str> = TLRUCache::new(100, Duration::from_secs(300));
+    /// ```
     pub fn new(capacity: usize, ttl: Duration) -> Self {
         let map = Arc::new(Mutex::new(IndexMap::new()));
-        let map_clone = Arc::clone(&map);
-
-        // Evict every 1 second or ttl/4, whichever is smaller
-        let eviction_interval = std::cmp::min(ttl / 4, Duration::from_secs(1));
-        
-        let handle = tokio::spawn(async move {
-            let mut interval_timer = interval(eviction_interval);
-            loop {
-                interval_timer.tick().await;
-                let now = Instant::now();
-                if let Ok(mut map_guard) = map_clone.lock() {
-                    map_guard.retain(|_, (_, expiry)| *expiry > now);
-                }
-            }
-        });
 
         Self {
             capacity,
             ttl,
             map,
-            eviction_handle: Some(handle),
         }
     }
 
+    /// Retrieves a value from the cache.
+    /// 
+    /// Returns `None` if the key doesn't exist or has expired.
+    /// Accessing an item marks it as recently used.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use tlru_rs::TLRUCache;
+    /// use std::time::Duration;
+    /// 
+    /// let mut cache: TLRUCache<i32, &'static str> = TLRUCache::new(10, Duration::from_secs(60));
+    /// cache.insert(1, "value");
+    /// 
+    /// assert_eq!(cache.get(&1), Some("value"));
+    /// assert_eq!(cache.get(&2), None);
+    /// ```
     pub fn get(&mut self, key: &K) -> Option<V> {
         if let Ok(mut map_guard) = self.map.lock() {
             if let Some((_, expiry)) = map_guard.get(key) {
@@ -57,6 +85,25 @@ impl<K: std::hash::Hash + Eq + Clone + Send + 'static, V: Clone + Send + 'static
         None
     }
 
+    /// Inserts a key-value pair into the cache.
+    /// 
+    /// Returns the previous value if the key already existed.
+    /// If the cache is at capacity, the least recently used item is evicted.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use tlru_rs::TLRUCache;
+    /// use std::time::Duration;
+    /// 
+    /// let mut cache: TLRUCache<i32, &'static str> = TLRUCache::new(10, Duration::from_secs(60));
+    /// 
+    /// // Insert new item
+    /// assert_eq!(cache.insert(1, "value"), None);
+    /// 
+    /// // Update existing item
+    /// assert_eq!(cache.insert(1, "new_value"), Some("value"));
+    /// ```
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         if let Ok(mut map_guard) = self.map.lock() {
             let mut previous_value = None;
@@ -79,16 +126,10 @@ impl<K: std::hash::Hash + Eq + Clone + Send + 'static, V: Clone + Send + 'static
     }
 }
 
-impl<K, V> Drop for TLRUCache<K, V> {
-    fn drop(&mut self) {
-        if let Some(handle) = self.eviction_handle.take() {
-            handle.abort();
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use mock_instant::global::MockClock;
+
     use super::*;
 
     #[test]
@@ -99,20 +140,21 @@ mod tests {
         is_sync::<TLRUCache<String, String>>();
     }
 
-    #[tokio::test]
-    async fn test_expiry() {
-        let mut cache = TLRUCache::new(2, Duration::from_secs(1));
+    #[test]
+    fn test_expiry() {
+        let mut cache: TLRUCache<i32, &'static str> = TLRUCache::new(2, Duration::from_secs(1));
+        MockClock::set_time(Duration::ZERO);
         cache.insert(1, "value1");
         cache.insert(2, "value2");
         assert_eq!(cache.get(&1), Some("value1"));
         assert_eq!(cache.get(&2), Some("value2"));
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        MockClock::advance(Duration::from_secs(2));
         assert_eq!(cache.get(&1), None);
         assert_eq!(cache.get(&2), None);
     }
 
-    #[tokio::test]
-    async fn test_eviction() {
+    #[test]
+    fn test_eviction() {
         let mut cache = TLRUCache::new(2, Duration::from_secs(1));
         cache.insert(1, "value1");
         cache.insert(2, "value2");
@@ -122,8 +164,8 @@ mod tests {
         assert_eq!(cache.get(&3), Some("value3"));
     }
 
-    #[tokio::test]
-    async fn test_lru_eviction() {
+    #[test]
+    fn test_lru_eviction() {
         let mut cache = TLRUCache::new(2, Duration::from_secs(5));
         cache.insert("apple", 3);
         cache.insert("banana", 2);
