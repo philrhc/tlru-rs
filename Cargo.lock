@@ -31,7 +31,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e1d4c44418358edcac6e1d9ce59cea7fb38052429c7704033f1196f0c179e6a"
 
 [[package]]
-name = "tlru-rs"
+name = "tlru-cache"
 version = "0.1.0"
 dependencies = [
  "indexmap",
