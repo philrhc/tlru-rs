@@ -20,13 +20,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tlru-rs = "0.1.0"
+tlru-caching = "0.1.0"
 ```
 
 ### Basic Usage
 
 ```rust
-use tlru_rs::TLRUCache;
+use tlru_caching::TLRUCache;
 use std::time::Duration;
 
 fn main() {

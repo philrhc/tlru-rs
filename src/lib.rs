@@ -34,7 +34,7 @@ impl<K: std::hash::Hash + Eq + Clone + Send + 'static, V: Clone + Send + 'static
     /// # Examples
     /// 
     /// ```
-    /// use tlru_rs::TLRUCache;
+    /// use tlru_caching::TLRUCache;
     /// use std::time::Duration;
     /// 
     /// let cache: TLRUCache<i32, &'static str> = TLRUCache::new(100, Duration::from_secs(300));
@@ -57,7 +57,7 @@ impl<K: std::hash::Hash + Eq + Clone + Send + 'static, V: Clone + Send + 'static
     /// # Examples
     /// 
     /// ```
-    /// use tlru_rs::TLRUCache;
+    /// use tlru_caching::TLRUCache;
     /// use std::time::Duration;
     /// 
     /// let mut cache: TLRUCache<i32, &'static str> = TLRUCache::new(10, Duration::from_secs(60));
@@ -93,7 +93,7 @@ impl<K: std::hash::Hash + Eq + Clone + Send + 'static, V: Clone + Send + 'static
     /// # Examples
     /// 
     /// ```
-    /// use tlru_rs::TLRUCache;
+    /// use tlru_caching::TLRUCache;
     /// use std::time::Duration;
     /// 
     /// let mut cache: TLRUCache<i32, &'static str> = TLRUCache::new(10, Duration::from_secs(60));
