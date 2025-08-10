@@ -1,13 +1,13 @@
 [package]
-name = "tlru-cache"
+name = "tlru-caching"
 version = "0.1.0"
 edition = "2021"
 authors = ["Philip Cummins <philhoughtoncummins@gmail.com>"]
-description = "A time-aware LRU cache implementation in Rust"
+description = "A time-aware LRU cache implementation"
 license = "Apache-2.0"
 repository = "https://github.com/philrhc/tlru-rs"
-keywords = ["cache", "lru", "ttl", "time-aware", "async"]
-categories = ["data-structures", "asynchronous"]
+keywords = ["cache", "lru", "ttl", "time-aware"]
+categories = ["data-structures"]
 readme = "README.md"
 
 [dependencies]
