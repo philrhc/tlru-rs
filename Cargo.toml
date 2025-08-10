@@ -1,11 +1,17 @@
 [package]
 name = "tlru-rs"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+authors = ["Philip Cummins <philhoughtoncummins@gmail.com>"]
+description = "A time-aware LRU cache implementation in Rust"
+license = "MIT"
+repository = "https://github.com/philrhc/tlru-rs"
+keywords = ["cache", "lru", "ttl", "time-aware", "async"]
+categories = ["data-structures", "asynchronous"]
+readme = "README.md"
 
 [dependencies]
 indexmap = "2"
-tokio =  { version = "1.47.0", features = ["rt-multi-thread", "time"] }
 
 [dev-dependencies]
-tokio = { version = "1.47.0", features = ["rt-multi-thread", "time", "macros"] }  
+mock_instant = "0.5.1"
